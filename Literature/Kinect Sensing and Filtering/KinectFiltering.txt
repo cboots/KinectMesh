@@ -1,0 +1,10 @@
+ @article{Puppo:2009:RS,
+    title = "RGB Subdivision",
+    author = "E. Puppo and D. Panozzo",
+    journal = "IEEE Transactions on Visualization and Computer Graphics",
+    volume = 15,
+    number = 2,
+    month = mar # "\slash " # apr, 
+    year = 2009,
+    pages = "295--310",
+  }
