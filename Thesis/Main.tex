@@ -14,25 +14,26 @@
 \begin{document}
 %Required
 
-\pagenumbering{roman}
 \include{TitlePage}
 
 %Title Page is page i
+\pagenumbering{roman}
 \setcounter{page}{2}
+
+\include{TableOfContents}
+\include{ListOfFigures}
 %Optional
 \include{Dedication}
 \include{Acknowledgment}
 
 %Required
 \include{Abstract}
-\include{TableOfContents}
-\include{ListOfFigures}
 
 %Main body of text
 
 % set the page numbers to be arabic, starting at page 1 %
-\setcounter{page}{1}
 \pagenumbering{arabic}
+\setcounter{page}{1}
 
 %===================START OF MAIN CONTENT=====================
 %Chapter 1 includes Introduction, thesis structure, related work, and background
