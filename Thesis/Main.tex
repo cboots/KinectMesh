@@ -34,8 +34,36 @@
 % set the page numbers to be arabic, starting at page 1 %
 \setcounter{page}{1}
 \pagenumbering{arabic}
-\include{MainContent}
 
+%===================START OF MAIN CONTENT=====================
+%Chapter 1 includes Introduction, thesis structure, related work, and background
+\include{Chapter1}
+
+%Chapter 2 is a primer on parallel algorithms and specifically CUDA design principles
+%Also describes the CPU/GPU Architecture at a high level
+\include{Chapter2}
+
+
+%Chapter 3 outlines the Problem Formulation and Approach, including
+%High level pipeline design of fully integrated system (from proposal with modification)
+%Break down into sub-problems to be solved
+%Highlight the focus of this thesis. Show sample outputs from each major stage of the pipeline in sequence
+\include{Chapter3}
+
+
+%Chapter 4 gets to implementation. Explain each pipeline algorithm in sequence
+\include{Chapter4}
+
+%This is the segment that can be as long or short as needed to finish in time. Leave to end.
+%Performance Analysis. Discuss impact of number of planes, size of planes, etc, with collected data. Highlight areas of improvement, engineering challenges with memory usage, reuse of buffers, reduction of memory usage by parameter tweaking, stream overlapping. Try to benchmark against other algorithms if have time, but probably won't.
+\include{Chapter5}
+
+
+%Conclusion and Future Work
+\include{Chapter6}
+
+
+%===================END OF MAIN CONTENT=====================
 %Optional
 \include{Appendices}
 
