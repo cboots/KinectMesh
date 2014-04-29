@@ -3,3 +3,8 @@
 /Proposal/proposal.blg
 /Proposal/proposal.log
 /Proposal/proposal.synctex.gz
+
+/Thesis/*.aux
+
+/Thesis/*.log
+/Thesis/*.gz
