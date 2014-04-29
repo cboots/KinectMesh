@@ -12,7 +12,30 @@
 \date{\thedate}
 
 \begin{document}
+%Required
+
+\pagenumbering{roman}
 \include{TitlePage}
-Test\cite{Alexa:2007:ETE}
+
+%Title Page is page i
+%Optional
+\include{Dedication}
+\include{Acknowledgment}
+
+%Required
+\include{Abstract}
+\include{TableOfContents}
+\include{ListOfFigures}
+
+%Main body of text
+
+% set the page numbers to be arabic, starting at page 1 %
+\pagenumbering{arabic}
+\include{MainContent}
+
+%Optional
+\include{Appendices}
+
+%Required
 \include{Bibliography}
 \end{document}
