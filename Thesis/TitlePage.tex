@@ -1,2 +1,32 @@
-\maketitle
+\newcommand{\namesig}[3][6cm]{%
+
+  \singlespacing 
+  \begin{tabular}{@{}p{#1}@{}}
+    \\[2\normalbaselineskip] \hrule \\[0pt]
+    {\textit{#2}} \\[0pt]
+    {#3}
+  \end{tabular}
+}
+
+\begin{titlepage}
+\begin{center}
 \thispagestyle{empty}
+{ \large \bfseries \thetitle \\[0.4cm] }
+\textsc{\theauthor}\\[0.5cm]
+A THESIS \\
+in \\
+Robotics\\
+
+Presented to the Faculties of the University of Pennsylvania in Partial \\
+Fulfillment of the Requirements for the Degree of Master of Science in Engineering
+\\
+\theyear
+
+\end{center}
+\namesig{\theadvisor}{Supervisor of Thesis}
+\namesig{Dr. Camillo J. Taylor}{Supervisor of Thesis}
+
+\end{titlepage}
+
+
+
