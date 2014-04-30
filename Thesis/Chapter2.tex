@@ -2,8 +2,105 @@
 %Also describes the CPU/GPU Architecture at a high level
 \chapter{Parallel Programming Paradigms}
 \label{chap:parallelprogramming}
+This chapter will provide and introduction to the fundamentals parallel programming. The remaining chapters will assume a working knowledge of parallel algorithms, GPU architecture, and CUDA optimization techniques.
 \section{Principles of Parallel Programming}
+As the physical limits of transistor size are being reached, the trend in computing has been away from making processors faster and towards parallel processing. The introduction of General Purpose Graphics Processing Units have made data parallel algorithms a very attractive approach to accelerating computationally intensive tasks. However, migrating from sequential computing to parallel platforms is not always simple or even wise. The following are some principles to keep in mind when considering using GPU acceleration.\par
+\paragraph{Keep data parallel} 
+Parallel computing is best suited to performing simple operations on large numbers of independent data elements, such as n-body simulations and per-pixel image processing operations. Aside from these trivial cases, adapting sequential algorithms to a GPU architecture efficiently can be challenging. Not all loops are easily parallelizable.
+\paragraph{Memory is a bottleneck}
+Computing with thousands of cores in a GPU makes memory I/O into a major bottleneck. Usually the data transfer to and from the parallel device will take much longer than the actual compute time. Be extremely conscious or memory usage.
+\paragraph{Minimize code divergence}
+On most architectures, parallel code runs in batches for increased efficiency. If the code is full of if/then/else statements, the divergent execution paths can dramatically impact performance.
+\paragraph{Avoid sequential operations and synchronization}
+Atomic operations that must be performed in order or synchronizations between concurrent threads of execution can be very slow. The more the threads can be independent of each other, the more efficiently the hardware will be able to execute them in parallel.
+\paragraph{Be mindful of the hardware}
+When writing performance critical code, understanding the underlying architecture can be a big help. Understanding how the code will actually be distributed and executed across multiple processors will make optimization much easier.
+
 \section{Parallel Algorithm Building Blocks}
+Just as there are fundamental building blocks of sequential computing like search, recursion, and iteration, many parallel algorithms make use of primitive operations like reduce, scan, and stream compact.
+\subsection{Reduction}
+Reduction is any operation on an array of elements that computes a single result. Common examples include sums, average, min, max, and product. In sequential terms, implementing reduction is very simple. Using sum as an example, algorithm~\ref{alg:sequentialsum} shows how this might be implemented.\\
+\begin{algorithm}[H]
+\label{alg:sequentialsum}
+ \singlespacing
+ \KwData{n element array X}
+ \KwResult{sum of elements in X}
+ i = 0\;
+ sum = 0\;
+ \While{i < n}{
+  sum += X[i]\;
+  i++\;
+ }
+ \caption{Sequential Sum}
+\end{algorithm}
+
+Notice that in the sequential algorithm, the accumulator's value at each iteration depends on the value in the previous iteration. To perform a parallel sum, the associative property of the operator can be exploited to break group the operation into a structured set of binary operations that can be performed in parallel (Figure~\ref{fig:reductionsum}).
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{ReductionSum.jpg}
+    \caption{Parallel Reduction. Reproduced from\cite{nguyen2007gpu}}
+    \label{fig:reductionsum}
+\end{figure}
+
+This parallel reduction method will work for any associative binary operator.
+
+\subsection{Scan}
+The scan operation is similar to a performing a cumulative sum operation on an array. There are two forms of scan: exclusive and inclusive. Usually the term scan refers to an exclusive scan.\par
+Given an associative binary operator $\oplus$ with identity value $I$ and an array of $n$ items $[a_0, a_1, \ldots a_{n-1}]$, an exclusive scan returns the array: $$[I, a_0, (a_0 \oplus a_1), (a_0 \oplus a_1 \oplus a_2),\ldots, (a_0 \oplus a_1 \oplus \ldots \oplus a_{n-2})]$$ An inclusive scan returns the shifted result:  $$[a_0, (a_0 \oplus a_1), (a_0 \oplus a_1 \oplus a_2),\ldots, (a_0 \oplus a_1 \oplus \ldots \oplus a_{n-1})]$$ The sequential implementation of a sum scan is trivial and outlined in Algorithm~\ref{alg:sumscan}.
+
+\begin{algorithm}[H]
+\label{alg:sumscan}
+ \singlespacing
+ \KwData{n element array X}
+ \KwResult{array Y contains exclusive scan of X}
+ i = 1\;
+ Y[0] = 0\;
+ \While{i < n}{
+   Y[i] = Y[i-1] + X[i-1]\;
+  	i++\;
+ }
+ \caption{Sequential Sum}
+\end{algorithm}
+To perform a parallel scan in a work efficient manner, first a reduction is performed on the array as in Figure~\ref{fig:reductionsum}. Then, the last element of the array is set to 0, and a series of swaps and sums are performed as shown in Figure~\ref{fig:downsweepscan}.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{DownSweepScan.jpg}
+    \caption{Down-sweep phase of parallel sum scan. Reproduced from\cite{nguyen2007gpu}}
+    \label{fig:downsweepscan}
+\end{figure}
+\section{Stream Compaction}
+In parallel computing, stream compaction is a useful tool for selecting a subset of data and compressing it into a coherent memory block. For example, stream compaction could be used to transfer all of the odd elements in array A of Figure~\ref{fig:streamcompactexample} and place them in order compressed at the start of array B.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{StreamCompactExample.png}
+    \caption{Example of stream compacting odd valued integers}
+    \label{fig:streamcompactexample}
+\end{figure}
+
+Accomplishing this is surprisingly simple. As shown in Figure~\ref{fig:streamcompact}, a secondary array of flags is created. This array has a 1 for every odd number in array A and 0 for all others. An exclusive scan is performed on the flag array. Notice that every flagged element now has a unique zero-based index associated with it. The flagged elements are then "scattered" by the computed index. The scatter function is outlined in Algorithm~\ref{alg:scatter}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{StreamCompact.png}
+    \caption{How stream compaction works (Scan and Scatter)}
+    \label{fig:streamcompact}
+\end{figure}
+
+
+\begin{algorithm}[H]
+\label{alg:scatter}
+ \singlespacing
+ \KwData{input array A and scanned flag array F, both of length n}
+ \KwResult{output stream compacted array B}
+ \ForEach{i=0...n-1 in parallel}{
+	\If{isFlagged(A[i])}{
+ 		B[F[i]] = A[i]\;
+  	}
+ }
+ \caption{Sequential Sum}
+\end{algorithm}
+
 \section{Programming with CUDA}
 \subsection{CUDA GPU Architecture}
 \subsection{Optimizing CUDA Code}
