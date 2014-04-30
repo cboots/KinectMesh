@@ -8,3 +8,22 @@
 
 /Thesis/*.log
 /Thesis/*.gz
+
+/Thesis/Main.bcf
+/Thesis/Main.lof
+/Thesis/Main.out
+/Thesis/Main.run.xml
+/Thesis/Main.toc
+
+/Kinect Code/Makefile.inc
+/Kinect Code/openni/__MACOSX/openni/._.DS_Store
+/Kinect Code/openni/openni/.DS_Store
+/Kinect Code/openni/openni/Makefile
+/Kinect Code/openni/openni/NiTE.ini
+/Kinect Code/openni/openni/README
+/Kinect Code/openni/openni/debug.test
+/Kinect Code/openni/openni/log_openni.lua
+/Kinect Code/openni/openni/lua_openni.cpp
+/Kinect Code/openni/openni/openni.so
+/Kinect Code/openni/openni/test_openni.lua
+/richaAgrawal.tex

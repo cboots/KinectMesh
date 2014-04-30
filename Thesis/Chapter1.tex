@@ -1,4 +1,26 @@
 %Chapter 1 includes Introduction, thesis structure, related work
-\chapter{Introduction} %Problem to be solved, current technology state, motivation for parallel processing
-\section{Related Work} %Similar systems like kinect fusion
+\chapter{Introduction} %Problem to be solved,  motivation for parallel processing
+\section{Motivation}
+As robots continue to be incorporated into human environments, the need for intelligent and high-speed reasoning about the objects around them increases dramatically. At the simplest level, mobile robots need to create a map of their environment for navigation. At a higher level, some robots need to recognize distinct objects in their environment, track object movement, and have some intuitive sense of object geometry that is easily stored and processed. Even more importantly, robots must be able to efficiently generate adaptable models of their environment, or worldview, from sensor data in real time. Many different methods for representing the world have been proposed and implemented, and they will be discussed below in more detail. Like the human brain, the robot should also be able to perform these low level functions with only minimal intervention from higher cognitive functions. Such technology also has potential uses beyond robotics. Applications may include easily modeling indoor environments for interior design concepts, generating 3D tours or maps for various buildings, or low resolution rough mapping of archaeological excavations.\\
+
+This thesis is intended to work towards such a system based on RGB-D cameras, triangle meshes, and the powerful parallel computing capability modern Graphics Processing Units (GPUs) offer. RGB-D Cameras provide a great low cost solution for capturing 3D environments. Triangle meshes are efficient to store, simple to manipulate and refine, and very versatile. Triangle meshes have the added benefit of being well suited to GPU hardware.
+\section{Related Work} %current technology state, Similar systems like kinect fusion
+A great variety of methods have been applied to RGB-D camera data in an effort to construct a coherent worldview. Each has advantages and disadvantages.
+\subsection{Worldview Storage Models}
+\paragraph{Point Cloud Models}
+The simplest approach to storing 
+\paragraph{Voxel Space Models}
+%Kinect Fusion, kinfu
+The most robust and impressive 
+\paragraph{Point Cloud Offline Processing}
+%Poisson Modeling, Mesh generation
+\subsection{Real-Time Plane Extraction}
+
+\subsection{Additional Resources}
+Although this thesis focuses on detecting and representing only planar elements, the envisioned worldview generating pipeline would need several additional components and capabilities to be successful. Additionally, many data processing technologies exist that can improve the quality of the input data through more sophisticated filtering.
+\paragraph{RGB-D Filtering}
+\paragraph{3D SLAM}
+\paragraph{Mesh Processing and Modification}
 \section{Thesis Organization} %Outline of thesis
+The remainder of this thesis is organized as follows. Chapter~\ref{chap:parallelprogramming} will review some basic precepts of parallel algorithm design, along with specific optimization considerations for programming GPUs with CUDA. Chapter~\ref{chap:approach} will provide an overview of the system design as well as break down the pipeline into sub-modules to be explored in much more detail in Chapter~\ref{chap:implementation}. Finally, Chapters~\ref{chap:analysis} and ~\ref{chap:conclusions} will provide performance analysis, conclusions, and areas of potential improvement for future work.\\
+{\color{red} TODO: Double Check that this hasn't changed}
