@@ -102,5 +102,23 @@ Accomplishing this is surprisingly simple. As shown in Figure~\ref{fig:streamcom
 \end{algorithm}
 
 \section{Programming with CUDA}
+CUDA is a C/C++ based programming language created by NVIDIA to expose the general compute functionality of their GPU processors. 
 \subsection{CUDA GPU Architecture}
+CUDA divides the computer into host and device. The host refers to the CPU and all memory it has access to, and the device refers to the GPU and its memory banks. Memory transfers between the host and GPU are started and managed by the host.\par
+A piece of code that runs in parallel on the device is called a kernel. Figure~\ref{fig:kernelorganization} shows how kernels are organized. Each individual running process is called a "thread". Threads are organized into "blocks" of up to 1024 threads on modern architectures. Blocks are then grouped into "grids". Within each block, threads are executed in groups of 32 threads called "warps". Every thread in a single warp executes simultaneously on a single processor core.
+The device memory architecture is depicted in Figure~\ref{fig:cudamemoryorganization}. Global memory, constant memory, and texture memory are all accessible by any thread in the kernel. The primary difference between these memories . Every thread also has access to a limited amount of memory which is shared between all threads in a block. Shared memory is much faster than global memory access, and can be used to accelerate kernels that need to share data between threads locally. Finally each thread has access to its own local register memory.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1.0\textwidth]{CUDAKernelModel.png}
+    \caption{CUDA Kernel Organization}
+    \label{fig:kernelorganization}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1.0\textwidth]{CUDAMemoryModel.png}
+    \caption{CUDA Memory Organization}
+    \label{fig:cudamemoryorganization}
+\end{figure}
 \subsection{Optimizing CUDA Code}
