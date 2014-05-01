@@ -111,14 +111,22 @@ The device memory architecture is depicted in Figure~\ref{fig:cudamemoryorganiza
 \begin{figure}[h]
     \centering
     \includegraphics[width=1.0\textwidth]{CUDAKernelModel.png}
-    \caption{CUDA Kernel Organization}
+    \caption{CUDA Kernel Organization. Reproduced from \cite{cudadocumentation}}
     \label{fig:kernelorganization}
 \end{figure}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=1.0\textwidth]{CUDAMemoryModel.png}
-    \caption{CUDA Memory Organization}
+    \caption{CUDA Memory Organization. Reproduced from \cite{gep3d}}
     \label{fig:cudamemoryorganization}
 \end{figure}
+
 \subsection{Optimizing CUDA Code}
+Optimizing CUDA kernels is very application dependent and difficult to provide a universal manual for. However, there are several key underlying GPU architecture features that should be highlighted which can have a dramatic impact on performance.
+\paragraph{Global Memory Coalesced Access} Global memory is designed in such a way that each half warp can load 64 consecutive bytes in memory as a single parallel read, provided the memory chunk is also 64-byte aligned. This is just enough memory to load an array of 16 consecutively floats at once (one per thread per half warp). To achieve peak memory bandwidth, reads and writes from global DRAM should be grouped into large consecutive chunks of memory. Because of this, it is sometimes extremely beneficial to utilized structure of array (SoA) data storage schemes as opposed to the more typical array of structures model (AoS).
+\paragraph{Shared Memory Optimization}
+Shared memory is much faster than global memory, so it can be instrumental in optimizing kernels. For example, instead of performing a reduction or scan in global memory, the entire array can be loaded into shared memory in a single read operation. The operation would then be performed in shared memory and the results written back in a single coalesced DRAM write. However, shared memory is limited. If too much is used, the number of blocks that can be simultaneously executed on a multiprocessor could go down, preventing the kernel from fully utilizing the GPU hardware. Also, this provides motivation for restricting the size of input data. If all of the data to be processed can be loaded into a single block, shared memory becomes much easier to utilize.\par
+Shared memory is divided into banks, where successive 32-bit words are assigned to successive banks. Shared memory access is done per bank, so if every thread in a warp reads from a different bank, regardless of the ordering, no bank conflicts occur. If two or more threads try to read from the same bank simultaneously, the reads are serialized which reduced the shared memory bandwidth utilization. The exception to this rule is when all threads read from the same bank. This triggers a special broadcast mode that has no bandwidth penalty.
+\paragraph{Warp Partitioning and Divergent Code}
+As mentioned above, threads are actually executed in groups of 32 threads called warps. All threads in a warp take the same amount of time to operate. So if only one thread in a warp is actually doing any work, 31 threads will be idle and waste GPU hardware. Minimizing intra-warp code divergence in will go a long way towards fully utilizing hardware. Also, if possible retire entire warps early to free up resources for warps in the execution queue.
