@@ -1,10 +1,16 @@
 %Chapter 4 gets to implementation. Explain each pipeline algorithm in sequence
 \chapter{Implementation}
 \label{chap:implementation}
-This chapter will explore in great detail the functionality and implementation of this thesis's pipeline. As a reminder, the pipeline consists of the highlighted elements in Figure~\ref{fig:toplevelpipeline}. Each section of this chapter describes the implementation of one of these functional blocks.
+This chapter will explore in great detail the functionality and implementation of this thesis's pipeline. As a reminder, the pipeline consists of the highlighted elements in Figure~\ref{fig:toplevelpipeline}. Each section of this chapter describes the implementation of one of these functional blocks, as well as a brief exposition on the visualization system. Each section will be accompanied by a figure illustrating the end product of that stage of the pipeline.
 
 \section{RGB-D Framework Library}
-A crucial component of the pipeline is being able to easily collect RGB-D sensor data from a variety of sources in such a way that the origin of the data is hidden from the remainder of the pipeline. To that end, a highly modular and easily extensible event based framework library was built to seamlessly convert the native data formats and streaming behavior of different sensors. Figure~\ref{fig:rgbdframework} provides an overview of the framework organization. The application code deals directly with four primary classes: RGBDDevice, RGBDFrame, Event Listeners, and FrameLogger.
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{CabinetDepthOverlay.png}
+    \caption{RGB image with depth overlay. Red is closer to the camera, blue is further away. Represents the output of the RGBD Framework}
+    \label{fig:rgbdframeworkoutput}
+\end{figure}
+A crucial component of the pipeline is being able to easily collect RGB-D sensor data from a variety of sources in such a way that the origin of the data is hidden from the remainder of the pipeline. To that end, a highly modular and easily extensible event based framework library was built to seamlessly convert the native data formats and streaming behavior of different sensors. Figure~\ref{fig:rgbdframework} provides an overview of the framework organization. The application code deals directly with four primary classes: RGBDDevice, RGBDFrame, Event Listeners, and FrameLogger. The final output of this framework is a color image and a depth image that are registered in such a way that the pixels have a one-to-one correspondence as shown in Figure~\ref{fig:rgbdframeworkoutput}.
 \begin{figure}[ht]
     \centering
     \includegraphics[width=1.0\textwidth]{FrameworkLayout.pdf}
@@ -16,7 +22,7 @@ The primary interface between the framework and the rest of the application is t
 \paragraph{ONIKinectDevice} ONIKinectDevice implements a connection specific to the Microsoft Kinect using OpenNI as middleware. The implementation utilizes OpenNI's event-based interface to receive data from the sensor. Two streams for the color and depth data are created and registered with listeners internal to ONIKinectDevice. When a new depth or color frame is received from OpenNI, the data is copied and repackaged into an RGBDFrame format and a new thread is launched which passes the RGBDFrame to each registered listener. 
 \paragraph{LogDevice} LogDevice replays a data log created using the FrameLogger class. Because of the way that the FrameLogger records the data, any device that can be implemented as an RGBDDevice can be recorded and played back using a LogDevice. The framework even allows logging data from a LogDevice. This class allows experiments to be performed very easily on prerecorded data without having to alter the behavior of the pipeline at all.
 \subsection{RGBDFrame}
-The RGBDFrame is a simple data structure that provides a consistent data formatting for users of the framework. Each frame consists of two managed shared pointers (implemented using boos::shared_array<T>); one points to the color data and the other points to depth data. Color data is stored in a 24-bit RGB format (1 byte for each component red, green, blue). Depth data is stored in an unsigned 16-bit integer where the least significant bit represents 1mm of resolution (i.e. the value 1024 corresponds to a depth of 1.024m). The frame also has two flags indicating the validity of the depth and color arrays, since not every frame will have both.\par
+The RGBDFrame is a simple data structure that provides a consistent data formatting for users of the framework. Each frame consists of two managed shared pointers (implemented using boos::shared\_array<T>); one points to the color data and the other points to depth data. Color data is stored in a 24-bit RGB format (1 byte for each component red, green, blue). Depth data is stored in an unsigned 16-bit integer where the least significant bit represents 1mm of resolution (i.e. the value 1024 corresponds to a depth of 1.024m). The frame also has two flags indicating the validity of the depth and color arrays, since not every frame will have both.\par
 RGBDFrames are created using a factory design paradigm. The RGBDFrameFactory generates managed pointers which refer to RGBDFrames of a given resolution. Because of the nature of shared pointers, when the last reference to the frames or its component arrays goes out of scope, the frame will delete itself. Because of this, the frames can easily be handed off to the application with no need for the application to be aware of the finer points of the RGBDFramework's memory management scheme. Since roughly 46MB of frame dedicated memory will be allocated every second by the framework, clean, simple memory management is essential.
 \subsection{Event Listeners}
 The RGBDDevice provides a suite of event listeners that the application code can register listeners for. Four events can be emitted by the RGBDDevice: DeviceConnected, DeviceDisconnected, DeviceMessage, and NewRGBDFrame.
@@ -27,9 +33,28 @@ This event is triggered when the underlying device is disconnected. This happens
 \paragraph{DeviceMessage}
 This is a special event that allows the device to pass human readable text descriptors to the application for display in the appropriate place. This is useful for debugging or for registering more unique events for a specific device.
 \paragraph{NewRGBDFrame}
-This event actually transfers the latest RGBDFrame from the sensor to the application. It passes a shared_ptr to the all registered listeners.
+This event actually transfers the latest RGBDFrame from the sensor to the application. It passes a shared\_ptr to the all registered listeners.
 \subsection{FrameLogger}
 The FrameLogger class is actually just a special subclass of the NewRGBDFrameListener class. To record the output of any RGBDDevice to a directory, the FrameLogger just needs to be given an output directory using setOutputDirectory. Once that has been done, all that is required to log the output is to call the FrameLogger's startRecording method, which registers the FrameLogger as a NewRGBDFrameListener with the target RGBDDevice. As the logger receives new frames (which can happen in parallel with the primary pipeline), they are tagged with a counter id and saved to the output directory as raw binary files. Some options are also available for data compression.
 \section{Filtering and Point Cloud Generation}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{CabinetNormals.png}
+    \caption{Visualization of surface normals, where components of the normal vector are mapped from -xyz to rgb.}
+    \label{fig:filteringoutput}
+\end{figure}
 \section{Plane Segmentation}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{CabinetPlanes.png}
+    \caption{Random colorization of detected planes.}
+    \label{fig:segmentationoutput}
+\end{figure}
 \section{Planar Mesh Generation}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{CabinetMesh.png}
+    \caption{Wireframe visualization of the textured mesh. Rendered using the intrinsic parameters of the original camera for direct comparison.}
+    \label{fig:meshoutput}
+\end{figure}
+\section{Visualization}
