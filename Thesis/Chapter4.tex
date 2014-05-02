@@ -138,10 +138,146 @@ The angle threshold can generally be set very wide, as much as $cos(\pi*15/180)$
 \section{Planar Mesh Generation}
 \begin{figure}[ht]
     \centering
+    \includegraphics[width=0.5\textwidth]{ProjectiveTransform.pdf}
+    \caption{Projective transform example}
+    \label{fig:projectivetransform}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{QuadtreeDecimation.pdf}
+    \caption{Stages of QuadTree Generation: A) Original RGB Image with AABB imposed, B) Plane Segmentation with AABB imposed, C) $(S_x,S_y)$ coordinate system visualized. Green intensity corresponds to $+S_y$ value and red intensity to $+S_x$, D) Flat projected RGB texture with projected AABB, E) QuadTree verticies visualized in flat projection space, F) Final QuadTree mesh visualized with virtual camera}
+    \label{fig:quadtreestages}
+\end{figure}
+
+Once the individual planes have been segmented, each plane is reduced using a parallelized version of QuadTree Based triangulation\cite{planesegmentationQTB}. The first step is to calculate the inverse projection of the plane onto a flat surface that is uniformly scaled in X and Y as in Figure~\ref{fig:projectivetransform}.
+The first step is to compute an axis-aligned bounding box (AABB) for each plane in the 2D coordinate frame defined by the plane's tangent and bitangent vectors $\vec{T}$ and $\vec{B}$. The plane's normal and tangent vectors are stored in the plane statistics, and the bitangent can be computed from the cross product $\vec{B}=\vec{N} \times \vec{T}$.\par
+The position of a camera space point $p$ in this coordinate system $(S_x,S_y)$ can be computed as: $$S_x=\vec{B} \cdot (p - \bar{p})$$ $$S_y=\vec{T} \cdot (p - \bar{p})$$
+Using a parallel reduction algorithm, the minimum and maximum values of $S_x$ and $S_y$ for each plane are computed. This provides an AABB in meters for each segment (Figure~\ref{fig:quadtreestages}C). To compute the projection matrix from camera space to flat space, the screen space coordinate pairs $(u_{source,i},v_{source,i})$ are computed for each corner using the bounding box and camera intrinsics: 
+$$p_1 = (AABB_{x,min} * \vec{B})+(AABB_{y,min} * \vec{T})+\bar{p}$$
+$$p_2 = (AABB_{x,max} * \vec{B})+(AABB_{y,min} * \vec{T})+\bar{p}$$
+$$p_3 = (AABB_{x,max} * \vec{B})+(AABB_{y,max} * \vec{T})+\bar{p}$$
+$$p_4 = (AABB_{x,min} * \vec{B})+(AABB_{y,max} * \vec{T})+\bar{p}$$
+$$u_{source,i} = \frac{p_{i,x}*fx}{p_{i,z}} + cx$$
+$$v_{source,i} = \frac{p_{i,y}*fy}{p_{i,z}} + cy$$
+The resolution of the final image is selected such that the final projected image will be less than 1024x1024 and resolution given in pixels/meter is a power of 2. This makes textures from various meshes much easier to compare directly by simple up-sampling or down-sampling. Once a resolution has been selected, the destination width and height $w_d$ and $h_d$ in pixels can be computed directly from the AABB dimensions and the pixels/m resolution: 
+$$w_d=resolution_{px/m} * {AABB_{x,max}-AABB_{x,min}}$$
+$$h_d=resolution_{py/m} * {AABB_{y,max}-AABB_{y,min}}$$
+Now the transform matrix $T$ can be calculated by the following procedure. Let:
+$$\begin{bmatrix}
+  u_{s,1} & u_{s,2} & u_{s,3} \\
+  v_{s,1} & v_{s,2} & v_{s,3} \\
+  1 & 1 & 1 
+ \end{bmatrix} * \vec{x} = \begin{bmatrix}
+  u_{s,4} \\
+  v_{s,4} \\
+  1
+ \end{bmatrix}$$
+Solve for $\vec{x}= A^{-1}*b$ and then multiply through the original matrix by $\vec{x}$ such that:
+$$A = \begin{bmatrix}
+  x_1*u_{s,1} & x_1*u_{s,2} & x_1*u_{s,3} \\
+  x_2*v_{s,1} & x_2*v_{s,2} & x_2*v_{s,3} \\
+  x_3 & x_3 & x_3 
+ \end{bmatrix}$$
+This matrix represents a transformation from the source coordinate system to an orthogonal basis vector set. Next the transform from the destination coordinate frame to the basis vector set is computed in a similar fashion.
+$$\begin{bmatrix}
+  0 & w_d & w_d \\
+  0 & 0 & h_d \\
+  1 & 1 & 1 
+ \end{bmatrix} * \vec{x} = \begin{bmatrix}
+  0 \\
+  h_d \\
+  1
+ \end{bmatrix}$$
+Solve for $\vec{x}= A^{-1}*b$ and then multiply through the original matrix by $\vec{x}$ such that:
+$$A = \begin{bmatrix}
+  0 & x_1*w_d & x_1*w_d \\
+  0 & 0 & x_2*h_d \\
+  x_3 & x_3 & x_3 
+ \end{bmatrix}$$
+Finally, the total transform can be computed $$T=A*B_{-1}$$
+Multiplying this transform by a pixel location in the destination image will compute the corresponding pixel location in the original RGB image after dehomogenization, allowing for a very simple projection algorithm implementation that is parallel by destination pixel.
+$$s = T*[d_x,d_y,1]^T$$
+$$x_{source} = s_x/s_z$$
+$$y_{source} = s_y/s_z$$
+
+Now that the texture has been projected to flat space (Figure~\ref{fig:quadtreestages}D), the parallel QuadTree reduction algorithm is run. To simplify the problem, the QuadTree is aligned to the pixel grid of the flat image. This allows for coherent memory access, simple indexing, and very fast parallel decimation. A degree buffer is initialized with -1 for invalid pixels and 0 for pixels that are a part of the plane segment (Figure~\ref{fig:decimation}). The degree number of a pixel indicates size of the quad with the upper left corner at that pixel. Algorithm~\ref{alg:quadtree} shows how the QuadTree decimation works. As an optimization, the kernel was divided into two phases, one for reduction steps 1 through 16, and another for 32 through 256. This breakdown allows the entire process to be done in 16x16 blocks of shared memory, greatly accelerating the process.\par
+Once the degree buffer has been filled, the vertices are stream compacted and a triangle index buffer is populated linking the compacted vertices. Each vertex is a 4 float vector containing the plane coordinate system $(S_x,S_y)$ coordinates of the point and the $(u,v)$ texture mapping coordinates. Each quad consists of two triangles using CCW winding order, the OpenGL default. These buffers can be directly drawn to the screen using OpenGL triangle elements (Figure~\ref{fig:meshoutput}).\par
+Each mesh is then pulled from the GPU along with their generated textures. The transformation matrix $H_{plane}$ from plane space to camera space is also generated at this point so that the plane can be drawn in the correct location on the screen. 
+$$H_{trans} = \begin{bmatrix}
+  1 & 0 & 0 & \bar{p}_x \\
+  0 & 1 & 0 & \bar{p}_y \\
+  0 & 0 & 1 & \bar{p}_z \\
+  0 & 0 & 0 & 1
+ \end{bmatrix}$$
+ $$H_{rotate} = \begin{bmatrix}
+  \vec{B} & \vec{T} & \vec{N} & 0 \\
+  0 & 0 & 0 & 1
+ \end{bmatrix}$$
+$$H_{plane} = H_{trans}*H_{rotate}$$
+\begin{algorithm}[H]
+\label{alg:quadtree}
+ \singlespacing
+ \KwData{Degree array D with 0 indicating valid pixels, -1 otherwise}
+ \KwResult{Degree array D with QuadTree decimation results}
+ \ForEach{pixel (x,y) in parallel}{
+ 
+	 \tcc{First step is special case}
+	 \If{D[x][y] == 0 and D[x+1][y] == 0 and D[x][y+1] == 0 and D[x+1][y+1] == 0}{
+		 D[x][y] = 1\;
+	 }
+	 
+	 \tcc{Quadtree decimation loop}
+	 step = 1\;
+	 \While{step $<$ 256}{
+	 	\tcc{If pixel correctly aligned for this step}
+	 	\If{x mod (2*step) == 0 and y mod (2*step) == 0}{
+			\tcc{If the four corners of this quad all have the correct degree}
+	 		\If{D[x][y] == step and D[x+1][y] == step and D[x][y+1] == step and D[x+1][y+1] == step}{
+	 			\tcc{Increase the degree of the upper left corner}
+	 			D[x][y] *= 2\;
+	 			\tcc{Clear the other three mid points}
+	 			D[x+1][y] = -1\;
+	 			D[x][y+1] = -1\;
+	 			D[x+1][y+1] = -1\;
+	 		}
+	 	}
+	 	
+	 	step $<<$= 1\;
+	 	syncthreads()\;
+	 }
+	 
+	 \tcc{Patch holes.}
+	 \If{D[x][y] $>$ 0}{
+	 	\If{D[x+D[x][y]][y] $<$ 0}{
+	 		D[x+D[x][y]][y] = 0\;
+	 	}
+	 	\If{D[x][y+D[x][y]] $<$ 0}{
+	 		D[x][y+D[x][y]] = 0\;
+	 	}
+	 	\If{D[x+D[x][y]][y+D[x][y]] $<$ 0}{
+	 		D[x+D[x][y]][y+D[x][y]] = 0\;
+	 	}
+	 }
+ }
+ 
+ \caption{QuadTree Decimation}
+\end{algorithm}
+
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{SampleDecimation.pdf}
+    \caption{Example contents of the QuadTree degree buffer at various stages of decimation}
+    \label{fig:decimation}
+\end{figure}
+
+
+
+\begin{figure}[ht]
+    \centering
     \includegraphics[width=1.0\textwidth]{CabinetMesh.png}
     \caption{Wireframe visualization of the textured mesh. Rendered using the intrinsic parameters of the original camera for direct comparison. Example of output from mesh generation stage.}
     \label{fig:meshoutput}
 \end{figure}
 
-
-\section{Visualization}
