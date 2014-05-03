@@ -20,7 +20,7 @@ When writing performance critical code, understanding the underlying architectur
 Just as there are fundamental building blocks of sequential computing like search, recursion, and iteration, many parallel algorithms make use of primitive operations like reduce, scan, and stream compact.
 \subsection{Reduction}
 Reduction is any operation on an array of elements that computes a single result. Common examples include sums, average, min, max, and product. In sequential terms, implementing reduction is very simple. Using sum as an example, algorithm~\ref{alg:sequentialsum} shows how this might be implemented.\\
-\begin{algorithm}[H]
+\begin{algorithm}[!htpb]
 \label{alg:sequentialsum}
  \singlespacing
  \KwData{n element array X}
@@ -48,7 +48,7 @@ This parallel reduction method will work for any associative binary operator.
 The scan operation is similar to a performing a cumulative sum operation on an array. There are two forms of scan: exclusive and inclusive. Usually the term scan refers to an exclusive scan.\par
 Given an associative binary operator $\oplus$ with identity value $I$ and an array of $n$ items $[a_0, a_1, \ldots a_{n-1}]$, an exclusive scan returns the array: $$[I, a_0, (a_0 \oplus a_1), (a_0 \oplus a_1 \oplus a_2),\ldots, (a_0 \oplus a_1 \oplus \ldots \oplus a_{n-2})]$$ An inclusive scan returns the shifted result:  $$[a_0, (a_0 \oplus a_1), (a_0 \oplus a_1 \oplus a_2),\ldots, (a_0 \oplus a_1 \oplus \ldots \oplus a_{n-1})]$$ The sequential implementation of a sum scan is trivial and outlined in Algorithm~\ref{alg:sumscan}.
 
-\begin{algorithm}[H]
+\begin{algorithm}[!htpb]
 \label{alg:sumscan}
  \singlespacing
  \KwData{n element array X}
@@ -71,7 +71,7 @@ To perform a parallel scan in a work efficient manner, first a reduction is perf
 \section{Stream Compaction}
 In parallel computing, stream compaction is a useful tool for selecting a subset of data and compressing it into a coherent memory block. For example, stream compaction could be used to transfer all of the odd elements in array A of Figure~\ref{fig:streamcompactexample} and place them in order compressed at the start of array B.
 
-\begin{figure}[h]
+\begin{figure}[!htpb]
     \centering
     \includegraphics[width=0.8\textwidth]{StreamCompactExample.png}
     \caption{Example of stream compacting odd valued integers}
@@ -80,7 +80,7 @@ In parallel computing, stream compaction is a useful tool for selecting a subset
 
 Accomplishing this is surprisingly simple. As shown in Figure~\ref{fig:streamcompact}, a secondary array of flags is created. This array has a 1 for every odd number in array A and 0 for all others. An exclusive scan is performed on the flag array. Notice that every flagged element now has a unique zero-based index associated with it. The flagged elements are then "scattered" by the computed index. The scatter function is outlined in Algorithm~\ref{alg:scatter}.
 
-\begin{figure}[h]
+\begin{figure}[!htpb]
     \centering
     \includegraphics[width=0.8\textwidth]{StreamCompact.png}
     \caption{How stream compaction works (Scan and Scatter)}
@@ -88,7 +88,7 @@ Accomplishing this is surprisingly simple. As shown in Figure~\ref{fig:streamcom
 \end{figure}
 
 
-\begin{algorithm}[H]
+\begin{algorithm}[!htpb]
 \label{alg:scatter}
  \singlespacing
  \KwData{input array A and scanned flag array F, both of length n}
@@ -108,14 +108,14 @@ CUDA divides the computer into host and device. The host refers to the CPU and a
 A piece of code that runs in parallel on the device is called a kernel. Figure~\ref{fig:kernelorganization} shows how kernels are organized. Each individual running process is called a "thread". Threads are organized into "blocks" of up to 1024 threads on modern architectures. Blocks are then grouped into "grids". Within each block, threads are executed in groups of 32 threads called "warps". Every thread in a single warp executes simultaneously on a single processor core.
 The device memory architecture is depicted in Figure~\ref{fig:cudamemoryorganization}. Global memory, constant memory, and texture memory are all accessible by any thread in the kernel. The primary difference between these memories . Every thread also has access to a limited amount of memory which is shared between all threads in a block. Shared memory is much faster than global memory access, and can be used to accelerate kernels that need to share data between threads locally. Finally each thread has access to its own local register memory.
 
-\begin{figure}[h]
+\begin{figure}[!htpb]
     \centering
     \includegraphics[width=1.0\textwidth]{CUDAKernelModel.png}
     \caption{CUDA Kernel Organization. Reproduced from \cite{cudadocumentation}}
     \label{fig:kernelorganization}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[!htpb]
     \centering
     \includegraphics[width=1.0\textwidth]{CUDAMemoryModel.png}
     \caption{CUDA Memory Organization. Reproduced from \cite{gep3d}}
