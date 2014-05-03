@@ -92,13 +92,15 @@ Figure~\ref{fig:missingwall} demonstrates a failing of the simple segmentation s
 One of the primary goals of this thesis is to ensure that the pipeline runs in near realtime. For a frame rate of roughly 30FPS, the entire pipeline must run in less than 32ms per frame. Most of the pipeline was designed to  have roughly the same runtime regardless of the scene being imaged. However, some segments of the pipeline are heavily data dependent. In particular, the number of planes detected in the image has a huge impact on the runtime of the mesh generation module.\par 
 
 All measurements in this chapter were performed on a workstation with an Intel i5-3570K CPU @3.40GHz, 8.00 GB of RAM, Windows 8.1 64-bit, and an GeForce GTX 760. \par 
-Figure~\ref{fig:runtimebystage} shows the runtime of each major pipeline module outlined in Chapter~\ref{chap:implementation) based data collected on a variety of scenes (n=2541). The memory management section has not been previously discussed and is responsible for deleting the results of the previous iteration. 
+Figure~\ref{fig:runtimebystage} shows the runtime of each major pipeline module outlined in Chapter~\ref{chap:implementation} based data collected on a variety of scenes (n=2541). The memory management section has not been previously discussed and is responsible for deleting the results of the previous iteration. 
+
 \begin{figure}[!htpb]
     \centering
     \includegraphics[width=1.0\textwidth]{RuntimeByPipelineStage.eps}
     \caption{Pipeline runtime broken down by stage.}
     \label{fig:runtimebystage}
 \end{figure}
+
 Note that both the preprocessing and segementation stages have very consistent runtimes with medians of 1.83 ms and 2.13 ms respectively. Figures~\ref{fig:preprocessingplanes} and ~\ref{fig:segementationplanes} show that apart from the case where no planes were detected, the number of planes in the image had practically no effect on either stage's runtime. However, the mesh generation stage varies greatly in runtime. Figure~\ref{fig:meshgenerationplanes} clearly demonstrates a positive correlation between the number of planes detected  and the total runtime of the stage. Likewise, the memory management stage shows a slight increase in runtime as the number of planes increases.\par
 
 \begin{figure}[!htpb]
@@ -145,6 +147,40 @@ How has this affected the ability of the system to run in real-time? Figure~\ref
 
 
 \subsection{Timeline Breakdown}
+The compute timeline of the pipeline is shown in Figure~\ref{fig:fulltimeline}. This view of the pipeline helps identify some key areas of the pipeline that could benefit from optimization. The GPU is idle for the vast majority of the memory management section of the timeline, during which the CPU performs memory cleanup tasks.  These tasks could be run in parallel with the next two pipeline stages, saving approximately 3ms per run.\par
+The preprocessing timeline (Figure~\ref{fig:preprocessingtimeline}) shows a significant gap in the compute stream as a small chunk of data is copied to the device. That data is the precomputed spatial kernel for the bilateral filter (the pale blue boxes right after the gap). This copy was performed every time to make changing the filter parameters at runtime simpler. However, once those parameters are fixed, this gap could easily be engineered away.\par 
+The segmentation kernel has been highly optimized and offers few potential sources of performance improvement (Figure~\ref{fig:segmentationtimeline}).\par 
+In contrast, the mesh generation pipeline (Figure~\ref{fig:meshgenerationtimeline}) could potentially be improved in several ways. First, notice that the GPU alternates between compute and memory transfer operations. CUDA devices are capable of multi-streaming, where the results from a previous iteration of compute are transfered to the host while the next compute iteration begins to run. Implementing multi-streaming would make much better use of the GPU's available resources. Also, the pipeline does not need to be iterative at all. Every plane could be processed in parallel given enough available GPU memory. Finally, the primary impact on performance comes from the large memory transfers required to transfer the mesh textures to the CPU. Newer versions of CUDA than used by this thesis have the capability to write directly to GPU texture memory, which may eliminate this transfer completely.
+
+\begin{figure}[!htpb]
+    \centering
+    \includegraphics[width=1.0\textwidth]{TimelineSnapshot.png}
+    \caption{Timeline overview of pipeline captured by NVIDIA Visual Profiler. Each colored block indicates a different kernel. The MemCpy rows indicate memory transfers between the device and host. The time periods delineated in green indicate the stages of the pipeline. From left to right: Memory Management, Preprocessing, Segmentation, Mesh Generation, and OpenGL Visualization}
+    \label{fig:fulltimeline}
+\end{figure}
+
+
+\begin{figure}[!htpb]
+    \centering
+    \includegraphics[width=1.0\textwidth]{PreprocessingTimeline.png}
+    \caption{Timeline of the preprocessing stage of the pipeline captured by NVIDIA Visual Profiler. Each colored block indicates a different kernel. The MemCpy rows indicate memory transfers between the device and host.}
+    \label{fig:preprocessingtimeline}
+\end{figure}
+
+
+\begin{figure}[!htpb]
+    \centering
+    \includegraphics[width=1.0\textwidth]{SegmentationTimeline.png}
+    \caption{Timeline of the segmentation stage of the pipeline captured by NVIDIA Visual Profiler. Each colored block indicates a different kernel. The MemCpy rows indicate memory transfers between the device and host.}
+    \label{fig:segmentationtimeline}
+\end{figure}
+
+\begin{figure}[!htpb]
+    \centering
+    \includegraphics[width=1.0\textwidth]{MeshGenerationTimeline.png}
+    \caption{Timeline of the mesh generation stage of the pipeline captured by NVIDIA Visual Profiler. Each colored block indicates a different kernel. The MemCpy rows indicate memory transfers between the device and host.}
+    \label{fig:meshgenerationtimeline}
+\end{figure}
 
 \section{Normal Estimation Accuracy}
 
