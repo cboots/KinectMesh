@@ -41,14 +41,14 @@ As it turns out, the pipeline is very good at floor plane detection. Figure~\ref
 
 
 \subsection{Failures}
-However, the pipeline does have several issues an common failure cases.
+However, the pipeline does have several issues an common failure cases. Figure~\ref{fig:foamboxes} shows an example of pseudo-planar surfaces that are partially detected. Because the box sides are multifaceted, the algorithm detects a broken surface, if it detects the surface at all. A more serious issue is shallowly curved surfaces like lampshades or large building columns are sometimes detected as a series of small plane segments as in Figure~\ref{fig:lampcurve}. Not only does this represent a false positive on a clearly non-planar surfaces, but it also creates a set of false planes that can cause segmentation errors in other parts of the scene.
+
 \begin{figure}[!htpb]
     \centering
     \includegraphics[width=0.8\textwidth]{FoamBoxesResults.png}
     \caption{Algorithm has difficulty with pseudo-planar surfaces. Upper left) original color image. Upper right) surface normal estimates. Lower left) mesh reconstruction. Lower right) Random colorization of plane segments}
     \label{fig:foamboxes}
 \end{figure}
-
 
 \begin{figure}[!htpb]
     \centering
@@ -57,7 +57,7 @@ However, the pipeline does have several issues an common failure cases.
     \label{fig:lampcurve}
 \end{figure}
 
-
+Figure~\ref{fig:distantsmallplane} shows an object that is clearly a plane 2.5 meters from the sensor that is only partially detected due to noise and decreased resolution. This is likely because the segmentation thresholds are constant across the full range of sensor accuracy and resolution, so surfaces at the extreme of the sensor's usable range are very likely to be broken up or poorly segmented. Adding resolution dependent thresholds is not a trivial task, because large planes can vary in resolution greatly from end to end.
 
 \begin{figure}[!htpb]
     \centering
@@ -66,7 +66,7 @@ However, the pipeline does have several issues an common failure cases.
     \label{fig:distantsmallplane}
 \end{figure}
 
-
+Figure~\ref{fig:missingwall} demonstrates a failing of the simple segmentation system I developed. If two large planes in the image (the wall and the whiteboard in this case) are very close to being parallel with each other, sometimes one of the planes will be completely missed. Also, when these closely related planes intersect, as is also the case in this image, an area tracing the plane intersection can be mislabeled. This is represented in Figure~\ref{fig:missingwall} by the horizontal strip of red spots extending from the upper right corner of the whiteboard segment extending towards the floorlamp. The plane intersection problem also shows up even when both planes are correctly detected (Figure~\ref{fig:planeintersect}).
 
 
 \begin{figure}[!htpb]
@@ -87,18 +87,19 @@ However, the pipeline does have several issues an common failure cases.
 
 
 
-
-
-
 \section{Performance Analysis}
+\subsection{Runtime Analysis}
+One of the primary goals of this thesis is to ensure that the pipeline runs in near realtime. For a frame rate of roughly 30FPS, the entire pipeline must run in less than 32ms per frame. Most of the pipeline was designed to  have roughly the same runtime regardless of the scene being imaged. However, some segments of the pipeline are heavily data dependent. In particular, the number of planes detected in the image has a huge impact on the runtime of the mesh generation module.\par 
 
-
+All measurements in this chapter were performed on a workstation with an Intel i5-3570K CPU @3.40GHz, 8.00 GB of RAM, Windows 8.1 64-bit, and an GeForce GTX 760. \par 
+Figure~\ref{fig:runtimebystage} shows the runtime of each major pipeline module outlined in Chapter~\ref{chap:implementation) based data collected on a variety of scenes (n=2541). The memory management section has not been previously discussed and is responsible for deleting the results of the previous iteration. 
 \begin{figure}[!htpb]
     \centering
     \includegraphics[width=1.0\textwidth]{RuntimeByPipelineStage.eps}
     \caption{Pipeline runtime broken down by stage.}
     \label{fig:runtimebystage}
 \end{figure}
+Note that both the preprocessing and segementation stages have very consistent runtimes with medians of 1.83 ms and 2.13 ms respectively. Figures~\ref{fig:preprocessingplanes} and ~\ref{fig:segementationplanes} show that apart from the case where no planes were detected, the number of planes in the image had practically no effect on either stage's runtime. However, the mesh generation stage varies greatly in runtime. Figure~\ref{fig:meshgenerationplanes} clearly demonstrates a positive correlation between the number of planes detected  and the total runtime of the stage. Likewise, the memory management stage shows a slight increase in runtime as the number of planes increases.\par
 
 \begin{figure}[!htpb]
     \centering
@@ -133,7 +134,7 @@ However, the pipeline does have several issues an common failure cases.
     \label{fig:meshgenerationplanes}
 \end{figure}
 
-
+How has this affected the ability of the system to run in real-time? Figure~\ref{fig:pipelineplanes} shows the total pipeline runtime for varying number of detected planes. The pipeline reliably achieves real-time performance when less than 6 planes are detected, and continues to achieve near real-time performance up to the most complicated scene with 11 planes.
 
 \begin{figure}[!htpb]
     \centering
@@ -143,3 +144,8 @@ However, the pipeline does have several issues an common failure cases.
 \end{figure}
 
 
+\subsection{Timeline Breakdown}
+
+\section{Normal Estimation Accuracy}
+
+\section{QuadTree Efficiency}

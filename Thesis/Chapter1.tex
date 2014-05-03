@@ -20,7 +20,7 @@ Perhaps the most robust and impressive real-time surface reconstruction algorith
     \label{fig:kinfu_workflow}
 \end{figure}
 
-A spacial extension of this system called Kintinuous was introduced in 2012\cite{whelan2012kintinuous,whelan:odometry}. Kintinuous uses a mobile voxel space which periodically relocates based on camera motion. Voxels that move outside the space are converted to a triangular mesh using a greedy mesh triangulation procedure described by Marton \textit{et al.}\cite{marton:fastreconstruction}.\par
+A spatial extension of this system called Kintinuous was introduced in 2012\cite{whelan2012kintinuous,whelan:odometry}. Kintinuous uses a mobile voxel space which periodically relocates based on camera motion. Voxels that move outside the space are converted to a triangular mesh using a greedy mesh triangulation procedure described by Marton \textit{et al.}\cite{marton:fastreconstruction}.\par
 Others have attempted to use sparse voxel octrees (SVOs) to represent larger unbounded spaces using voxels of varying resolution\cite{laine:svo,fastvoxelmaps}. This approach is very amenable to human environments like buildings which are dominated by free space. However, all of these approaches are still limited to storing discrete data points and contain no inherent information about coherent objects or regions.
 \paragraph{Point Cloud Offline Processing}
 %Poisson Modeling, Mesh generation
