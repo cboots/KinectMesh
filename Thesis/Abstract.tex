@@ -1,4 +1,4 @@
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{\numberline{}Abstract}%
-Your abstract goes here...
-...
+As robots continue to be incorporated into human environments, the need for high-speed systems that can recognize geometry increases. This thesis is intended to work towards such a system based on RGB-D cameras, triangle meshes, and the powerful parallel computing capability modern Graphics Processing Units (GPUs) offer.  A robust, high-speed GPU based pipeline that converts raw RGB and depth frames into a 3D textured mesh representation of large planar surfaces in the field of view is presented. Triangle meshes are efficient to store, simple to manipulate and refine, and very versatile. Meshes have the added benefit of being well suited to GPU hardware (which was originally designed for just that purpose).\par
+The created pipeline is capable of segmenting large planar surfaces and converting them to an efficient QuadTree based textured mesh format in real-time. The additional memory burden for storing the color data in texture format in most cases creates a net increase in memory storage for a single frame. However, the pipeline is intended to be part of a larger system that integrates data from multiple frames so this up-front memory cost would be mitigated over time.
