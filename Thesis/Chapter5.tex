@@ -210,3 +210,32 @@ The second metric is to measure each segmented point's local normal with the fin
 \end{figure}
 
 \section{QuadTree Efficiency}
+\begin{figure}[!htpb]
+    \centering
+    \includegraphics[width=0.9\textwidth]{BoxWithAndWithoutQuadTree.pdf}
+    \caption{Comparison of textured mesh generated with (top, 76,698 vertices) and without (bottom, 18,573 vertices) QuadTree optimization.}
+    \label{fig:withwithoutquadtree}
+\end{figure}
+The effectiveness of the QuadTree mesh simplification algorithm is difficult to measure fairly, since it was designed to optimize memory storage over multiple frames not frame by frame. So first, I will offer an apples to apples comparison between a set of meshes generated with and without QuadTree decimation on the same dataset. Figure~\ref{fig:withwithoutquadtree} shows a visual comparison of the triangulations. The original mesh consists of 76,698 vertices. The simplified QuadTree mesh uses only 18,573 vertices, roughly 25\% of the original mesh size.\par
+However, the space these figures are computed in is a projection of the original image into a flat space. Depending on the size of the plane in the image, this space may be downscaled or upscaled to fit the texture efficiently. To show the practical effect this has on compression ratio, Figure~\ref{fig:compressionratio} compares the measured compression ratio for multiple scenes plotted against the number of planar points in the original image. Note that only for some very small planes does the ratio go above 1, and for most they are at or below 0.25.  This suggests that even if the mesh had been generated in camera space with a greedy meshing algorithm, the QuadTree representation would still be more space efficient in representing the geometry.\par
+In addition, because the QuadTrees are restricted to a plane, each vertex only requires 2 degrees of freedom, whereas the greedy camera space triangulation requires 3 per vertex. Therefore, the storage requirements of the QuadTree are reduced by roughly another third over an equivalent 3D free mesh.\par 
+
+
+\begin{figure}[!htpb]
+    \centering
+    \includegraphics[width=0.9\textwidth]{CompressionRatio.eps}
+    \caption{QuadTree vertex compression ratio measured for many different scenes. Compression is measured as number of pixels in the original plane segment over number of vertices in the final mesh.}
+    \label{fig:compressionratio}
+\end{figure}
+
+
+
+\begin{figure}[!htpb]
+    \centering
+    \includegraphics[width=0.9\textwidth]{MemoryCompressionRatio.eps}
+    \caption{QuadTree total memory compression ratio measured for many different scenes. Compression is measured as number of bytes required by quadtree+color texture over number of bytes required by greedy triangulation with vertex coloring.}
+    \label{fig:memorycompressionratio}
+\end{figure}
+
+However, adding in the color texture representation results in a net gain in memory usage due to the higher resolution offered by the texture. Also, texture dimensions are fixed to be powers of 2, so many textures are larger than their contents. Figure~\ref{fig:memorycompressionratio} shows the theoretical memory usage for the same data set as Figure~\ref{fig:compressionratio}. Note the distinct curves that emerge from the data due to the rounding up of texture dimensions to powers of two.\par 
+So, the conclusion to draw from this data is that the memory savings from storing the mesh geometry in the QuadTree structure are quite significant, but at least for a single frame of data, including color information imposes a hefty additional memory burden. The hope is that as new frames are collected and integrated, this additional memory will be reused and the new color information will be trivial to integrate with the preexisting texture.
