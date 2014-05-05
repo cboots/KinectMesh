@@ -61,7 +61,7 @@ $$v_y = (v - c_y) * depth / f_y$$
 $$v_z = depth$$
 Pixels with invalid depth data are stored as NaN to allow easy validation later in the pipeline.\par 
 The Gaussian kernel performs the same projection, but also applies a separated implementation of Gaussian filter  $(radius=3 pixels,\sigma=2.0)$ to the depth data before calculating the projection. This helps remove much of the depth quantization and sensor noise that makes normal estimation difficult. However, the Gaussian filter does not preserve edges, so crucial discontinuities in the image are blurred together.\par 
-To solve this problem, a bilateral filter is used instead. In addition to the spatial Gaussian term that weights pixels by their screen distance from the center pixel, bilateral filters also apply a Gaussian weight to the difference in intensity. In this way, pixels that have a vastly different depth value will have a lower weight and hard edges can be more easily preserved.\par 
+To solve this problem, a bilateral filter is used instead. In addition to the spatial Gaussian term that weights pixels by their screen distance from the center pixel, bilateral filters also apply a Gaussian weight to the difference in intensity. In this way, pixels that have a vastly different depth value will have a lower weight and hard edges can be more easily preserved. One important thing to note about the bilateral filter is that unlike a Gaussian kernel, a bilateral kernel is not mathematically separable. Since implementing a non-separable filter would have a huge performance impact, a separable approximation by Pham and Vliet was used\cite{pham2005separable}.\par 
 As with the color data, the vertex map is subsampled into a resolution pyramid.
 \paragraph{Normal Estimation}
 Surface normals are locally estimated for each valid point. Several methods exist for estimating point cloud normals, but the simplest to apply in an ordered image is a gradient based approach. For each point $\vec{p}(x,y)$ Two vectors $\vec{G_x}$ and $\vec{G_y}$ are created from the neighboring points. $$\vec{G_x}(x,y)=\vec{p}(x+1,y)-\vec{p}(x-1,y)$$ $$\vec{G_y}(x,y)=\vec{p}(x,y+1)-\vec{p}(x,y-1)$$
@@ -104,7 +104,7 @@ The overall approach to image segmentation is inspired by Holz \textit{et al.}\c
 \end{figure}
 
 \subsection{Normal Histogram Generation and Peak Detection}
-Holz\cite{holz2012real} used a 3D voxel grid to discretize normal space, although they also experimented with a two-dimensional $(\phi,\theta)$ space. They then merged clusters with their neighbors to come up with their final segmentation. Unfortunately, this approach does not map well to the GPU. As an alternative, I created a very simple index mapping $[n_x,n_y,n_z] \to [\frac{\cos^{-1}(n_x)}{\pi}*numBinsX,\frac{\cos^{-1}(n_y)}{\pi}*numBinsY]$ where $numBinsX$ and $numBinsY$ are the resolution of the histogram. Instead of doing sophisticated clustering, I perform simple iterative global maximum detection using a high speed parallel reduction algorithm. After each peak is detected, a region of histogram space surrounding the peak is cleared to avoid just off max peaks from being recorded. This iteration continues until the maximum number of peaks have been detected or no peak is above the minimum threshold count. Each detected peak index is then reverse mapped to a peak normal vector. To improve accuracy slightly, the normal is computed using an average of the neighboring normals weighted by the histogram count.\par
+Holz\cite{holz2012real} used a 3D voxel grid to discretize normal space, although they also experimented with a two-dimensional $(\phi,\theta)$ space. They then merged clusters with their neighbors to come up with their final segmentation. Unfortunately, this cluster merging approach does not map easily to the GPU. As an alternative, I created a very simple index mapping $[n_x,n_y,n_z] \to [\frac{\cos^{-1}(n_x)}{\pi}*numBinsX,\frac{\cos^{-1}(n_y)}{\pi}*numBinsY]$ where $numBinsX$ and $numBinsY$ are the resolution of the histogram. Instead of doing sophisticated clustering, I perform simple iterative global maximum detection using a high speed parallel reduction algorithm. After each peak is detected, a region of histogram space surrounding the peak is cleared to avoid just off max peaks from being recorded. This iteration continues until the maximum number of peaks have been detected or no peak is above the minimum threshold count. Each detected peak index is then reverse mapped to a peak normal vector. To improve accuracy slightly, the normal is computed using an average of the neighboring normals weighted by the histogram count.\par
 One important thing to note about histogram generation in parallel is the runtime performance is heavily data dependent. If two threads running concurrently try to increment the same histogram bin, a race condition occurs and the result is corrupted. This requires using atomic operations to serialize these additions. As a result, the worst case scenario is a single noiseless plane that fills the entire image. By contrast, calculating the histogram on the CPU would be constant runtime. In my experiments, the CPU runtime plus memory transfers took longer than most GPU scenarios, but the ultimately it is an engineering tradeoff. Alternatively, the resolution of the histogram can be increased, which statistically decreases the number of write conflicts. However, this makes peak detection slightly more complicated to implement efficiently. Again, tradeoffs to be considered another time.
 \subsection{Segmentation By Normals}
 This step is fairly self explanatory. Using the peaks detected in the previous step, if the normal of a point deviates from a peak normal by less than 5 degrees, the pixel is assigned to that peak. This step also computes the projected distance of the point for use in the next step. The distance calculation is derived from the plane equation: $$a*x+b*y+c*z=dist$$
@@ -114,7 +114,7 @@ Using the corresponding peak normal as the constant parameters $[a,b,c]$ and the
 This stage serves two functions. First, multiple planes can have the same normal but different distance offsets. A door recessed into a wall is a very common example in human environments. Using the projected distance along the normal to a parallel plane passing the origin and creating a histogram of these distances (Figure~\ref{fig:segmentationstages}C), each plane should stand out as a unique peak. However, if the plane normal estimate from the peak detection step was too far off from the ground truth plane normal then these peaks will be smeared and difficult to detect. This is the primary reason that the inner loop is run twice, once to have a shot at detecting some portion of a plane to get a truer normal, and a second run with the true normal to find the actual planes. Without this step, large planes were often broken into several smaller strips or planes that were not offset by much were merged incorrectly.\par 
 Once the distance peaks are located, the previous segmentation is refined with only points corresponding to distance peaks remaining. For efficiency, the same kernel that updates the segmenation buffer also collects the first pass plane statistics. Each plane's pixel count, centroid, and scatter matrix are computed in this stage, though the values are just stored as accumulated sums. The data collected here will be processed in the next stage.
 \subsection{Plane Statistics Processing and Plane Merging}
-This stage calculates various defining features of the planes. The statistics collected were inspired by Biswas\textit{et al.} work on a RANSAC based plane filtering algorithm\cite{biswas2012planar}. The plane centroid is computed as: $$\bar{p}=\frac{1}{n}*\sum_{p_i \in P}{p_i}$$ where $n$ is the number of points in the planar segment. To compute the plane normal and tangent, the scatter matrix of the plane could be computed as: $$S = \sum_{p_i \in P}(p_i-\bar{p})(p_i-\bar{p})^T$$.
+This stage calculates various defining features of the planes. The statistics collected were inspired by Biswas\textit{et al.} work on a RANSAC based plane filtering algorithm\cite{biswas2012planar}. The plane centroid is computed as: $$\bar{p}=\frac{1}{n}*\sum_{p_i \in P}{p_i}$$ where $n$ is the number of points in the planar segment. To compute the plane normal and tangent, the scatter matrix of the plane could be computed as: $$S = \sum_{p_i \in P}(p_i-\bar{p})(p_i-\bar{p})^T$$
 However, merging the planes becomes much simpler if the matrix can be decoupled from the centroid\cite{biswas2012planar}. So let 
 $$S_1 = \frac{1}{n}\begin{bmatrix}
   \sum{x_i x_i} & \sum{x_i y_i} & \sum{x_i z_i} \\
@@ -134,7 +134,7 @@ The eigenvector corresponding to the smallest eigenvalue of $S'$ is taken to be 
 \subsection{Final Segmentation}
 Once all the planes have been finalized, all points in the image are considered and evaluated to find the best fit. Points are assigned to planes using the following minimization procedure:
 $$PlaneId_i = \operatorname{arg\,min}_{plane} [ p_i \cdot \vec{N}_{plane} ]$$ s.t. $$|\vec{N}_i \cdot \vec{N}_{plane}| > angleThreshold$$ and $$p_i \cdot \vec{N}_{plane} < distThreshold$$
-The angle threshold can generally be set very wide, as much as $cos(\pi*15/180)$, since the dominating factor will be distance to the plane. A typical distance threshold should be around 0.015m to allow for noise.
+The angle threshold can generally be set very wide, as much as $cosd(15^{\circ})$, since the dominating factor will be distance to the plane. A typical distance threshold should be around 0.015m to allow for noise.
 \section{Planar Mesh Generation}
 \begin{figure}[!h]
     \centering
@@ -158,11 +158,11 @@ $$p_1 = (AABB_{x,min} * \vec{B})+(AABB_{y,min} * \vec{T})+\bar{p}$$
 $$p_2 = (AABB_{x,max} * \vec{B})+(AABB_{y,min} * \vec{T})+\bar{p}$$
 $$p_3 = (AABB_{x,max} * \vec{B})+(AABB_{y,max} * \vec{T})+\bar{p}$$
 $$p_4 = (AABB_{x,min} * \vec{B})+(AABB_{y,max} * \vec{T})+\bar{p}$$
-$$u_{source,i} = \frac{p_{i,x}*fx}{p_{i,z}} + cx$$
-$$v_{source,i} = \frac{p_{i,y}*fy}{p_{i,z}} + cy$$
+$$u_{source,i} = \frac{p_{i,x}*f_x}{p_{i,z}} + c_x$$
+$$v_{source,i} = \frac{p_{i,y}*f_y}{p_{i,z}} + c_y$$
 The resolution of the final image is selected such that the final projected image will be less than 1024x1024 and resolution given in pixels/meter is a power of 2. This makes textures from various meshes much easier to compare directly by simple up-sampling or down-sampling. Once a resolution has been selected, the destination width and height $w_d$ and $h_d$ in pixels can be computed directly from the AABB dimensions and the pixels/m resolution: 
 $$w_d=resolution_{px/m} * {AABB_{x,max}-AABB_{x,min}}$$
-$$h_d=resolution_{py/m} * {AABB_{y,max}-AABB_{y,min}}$$
+$$h_d=resolution_{px/m} * {AABB_{y,max}-AABB_{y,min}}$$
 Now the transform matrix $T$ can be calculated by the following procedure. Let:
 $$\begin{bmatrix}
   u_{s,1} & u_{s,2} & u_{s,3} \\
@@ -195,15 +195,15 @@ $$A = \begin{bmatrix}
   0 & 0 & x_2*h_d \\
   x_3 & x_3 & x_3 
  \end{bmatrix}$$
-Finally, the total transform can be computed $$T=A*B_{-1}$$
+Finally, the total transform can be computed $$T=A*B^{-1}$$
 Multiplying this transform by a pixel location in the destination image will compute the corresponding pixel location in the original RGB image after dehomogenization, allowing for a very simple projection algorithm implementation that is parallel by destination pixel.
 $$s = T*[d_x,d_y,1]^T$$
-$$x_{source} = s_x/s_z$$
-$$y_{source} = s_y/s_z$$
+$$x_{source} = \frac{s_x}{s_z}$$
+$$y_{source} = \frac{s_y}{s_z}$$
 
 Now that the texture has been projected to flat space (Figure~\ref{fig:quadtreestages}D), the parallel QuadTree reduction algorithm is run. To simplify the problem, the QuadTree is aligned to the pixel grid of the flat image. This allows for coherent memory access, simple indexing, and very fast parallel decimation. A degree buffer is initialized with -1 for invalid pixels and 0 for pixels that are a part of the plane segment (Figure~\ref{fig:decimation}). The degree number of a pixel indicates size of the quad with the upper left corner at that pixel. Algorithm~\ref{alg:quadtree} shows how the QuadTree decimation works. As an optimization, the kernel was divided into two phases, one for reduction steps 1 through 16, and another for 32 through 256. This breakdown allows the entire process to be done in 16x16 blocks of shared memory, greatly accelerating the process.\par
 Once the degree buffer has been filled, the vertices are stream compacted and a triangle index buffer is populated linking the compacted vertices. Each vertex is a 4 float vector containing the plane coordinate system $(S_x,S_y)$ coordinates of the point and the $(u,v)$ texture mapping coordinates. Each quad consists of two triangles using CCW winding order, the OpenGL default. These buffers can be directly drawn to the screen using OpenGL triangle elements (Figure~\ref{fig:meshoutput}).\par
-Each mesh is then pulled from the GPU along with their generated textures. The transformation matrix $H_{plane}$ from plane space to camera space is also generated at this point so that the plane can be drawn in the correct location on the screen. 
+Each mesh is then pulled from the GPU along with their generated textures. The transformation matrix $H_{plane}$ from plane space to camera space is also generated at this point so that the plane can be drawn in the correct location on the screen. The translation component of the transform is derived from the plane's centroid, while the rotation matrix utilizes the plane's normal, tangent, and bitangent vectors ($\vec{N}$,$\vec{T}$,$\vec{B}$) as a basis.
 $$H_{trans} = \begin{bmatrix}
   1 & 0 & 0 & \bar{p}_x \\
   0 & 1 & 0 & \bar{p}_y \\

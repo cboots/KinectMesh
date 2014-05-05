@@ -8,7 +8,7 @@ As the physical limits of transistor size are being reached, the trend in comput
 \paragraph{Keep data parallel} 
 Parallel computing is best suited to performing simple operations on large numbers of independent data elements, such as n-body simulations and per-pixel image processing operations. Aside from these trivial cases, adapting sequential algorithms to a GPU architecture efficiently can be challenging. Not all loops are easily parallelizable.
 \paragraph{Memory is a bottleneck}
-Computing with thousands of cores in a GPU makes memory I/O into a major bottleneck. Usually the data transfer to and from the parallel device will take much longer than the actual compute time. Be extremely conscious or memory usage.
+Computing with thousands of cores in a GPU makes memory I/O into a major bottleneck. Usually the data transfer to and from the parallel device will take much longer than the actual compute time. Be extremely conscious of memory usage and access patterns.
 \paragraph{Minimize code divergence}
 On most architectures, parallel code runs in batches for increased efficiency. If the code is full of if/then/else statements, the divergent execution paths can dramatically impact performance.
 \paragraph{Avoid sequential operations and synchronization}
@@ -27,7 +27,7 @@ Reduction is any operation on an array of elements that computes a single result
  \KwResult{sum of elements in X}
  i = 0\;
  sum = 0\;
- \While{i < n}{
+ \While{i $<$ n}{
   sum += X[i]\;
   i++\;
  }
@@ -55,7 +55,7 @@ Given an associative binary operator $\oplus$ with identity value $I$ and an arr
  \KwResult{array Y contains exclusive scan of X}
  i = 1\;
  Y[0] = 0\;
- \While{i < n}{
+ \While{i $<$ n}{
    Y[i] = Y[i-1] + X[i-1]\;
   	i++\;
  }
@@ -78,7 +78,7 @@ In parallel computing, stream compaction is a useful tool for selecting a subset
     \label{fig:streamcompactexample}
 \end{figure}
 
-Accomplishing this is surprisingly simple. As shown in Figure~\ref{fig:streamcompact}, a secondary array of flags is created. This array has a 1 for every odd number in array A and 0 for all others. An exclusive scan is performed on the flag array. Notice that every flagged element now has a unique zero-based index associated with it. The flagged elements are then "scattered" by the computed index. The scatter function is outlined in Algorithm~\ref{alg:scatter}.
+Accomplishing this is surprisingly simple. As shown in Figure~\ref{fig:streamcompact}, a secondary array of flags is created. This array has a 1 for every odd number in array A and 0 for all others. An exclusive scan is performed on the flag array. Notice that every flagged element now has a unique zero-based index associated with it. The flagged elements are then ``scattered'' by the computed index. The scatter function is outlined in Algorithm~\ref{alg:scatter}.
 
 \begin{figure}[!htpb]
     \centering
@@ -105,8 +105,8 @@ Accomplishing this is surprisingly simple. As shown in Figure~\ref{fig:streamcom
 CUDA is a C/C++ based programming language created by NVIDIA to expose the general compute functionality of their GPU processors. 
 \subsection{CUDA GPU Architecture}
 CUDA divides the computer into host and device. The host refers to the CPU and all memory it has access to, and the device refers to the GPU and its memory banks. Memory transfers between the host and GPU are started and managed by the host.\par
-A piece of code that runs in parallel on the device is called a kernel. Figure~\ref{fig:kernelorganization} shows how kernels are organized. Each individual running process is called a "thread". Threads are organized into "blocks" of up to 1024 threads on modern architectures. Blocks are then grouped into "grids". Within each block, threads are executed in groups of 32 threads called "warps". Every thread in a single warp executes simultaneously on a single processor core.
-The device memory architecture is depicted in Figure~\ref{fig:cudamemoryorganization}. Global memory, constant memory, and texture memory are all accessible by any thread in the kernel. The primary difference between these memories . Every thread also has access to a limited amount of memory which is shared between all threads in a block. Shared memory is much faster than global memory access, and can be used to accelerate kernels that need to share data between threads locally. Finally each thread has access to its own local register memory.
+A piece of code that runs in parallel on the device is called a kernel. Figure~\ref{fig:kernelorganization} shows how kernels are organized. Each individual running process is called a ``thread''. Threads are organized into ``blocks'' of up to 1024 threads on modern architectures. Blocks are then grouped into ``grids''. Within each block, threads are executed in groups of 32 threads called ``warps''. Every thread in a single warp executes simultaneously on a single processor core.
+The device memory architecture is depicted in Figure~\ref{fig:cudamemoryorganization}. Global memory, constant memory, and texture memory are all accessible by any thread in the kernel. Every thread also has access to a limited amount of memory which is shared between all threads in a block. Shared memory is much faster than global memory access, and can be used to accelerate kernels that need to share data between threads locally. Finally each thread has access to its own local register memory.
 
 \begin{figure}[!htpb]
     \centering
